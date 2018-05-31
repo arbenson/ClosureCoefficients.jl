@@ -2,12 +2,9 @@ module ClosureCoefficients
 
 using Combinatorics
 
-export undir_clcfs, undir_clcfs_data
+export undir_clcfs, dir_clcfs, clcfs_data
 
-const WEDGE_OO = 1
-const WEDGE_OI = 2
-const WEDGE_IO = 3
-const WEDGE_II = 4
+const SpIntMat = SparseMatrixCSC{Int64,Int64}
 
 const TRI_OO_O = 1
 const TRI_OO_I = 2
@@ -18,8 +15,30 @@ const TRI_IO_I = 6
 const TRI_II_O = 7
 const TRI_II_I = 8
 
-nz_row_inds(A::SparseMatrixCSC{Int64,Int64}, ind::Int64) =
+nz_row_inds(A::SpIntMat, ind::Int64) =
     A.rowval[A.colptr[ind]:(A.colptr[ind + 1] - 1)]
+
+function create_data_dir(triangles::Vector{Int64}, wedges::Vector{Int64})
+    local_clcfs = zeros(Float64, length(wedges))
+    nz_inds = find(wedges .> 0)
+    local_clcfs[nz_inds] = triangles[nz_inds] ./ wedges[nz_inds]
+    avg_clcf = (length(nz_inds) > 0) ? mean(local_clcfs[nz_inds]) : 0.0
+    num_wedges = sum(wedges)
+    global_clcf = (num_wedges > 0) ? sum(triangles) / num_wedges : 0.0
+    return clcfs_data(global_clcf, avg_clcf, local_clcfs, wedges, triangles)
+end
+
+function degree_order(A::SpIntMat)
+    n = size(A, 1)
+    deg_order = zeros(Int64, n)
+    deg_order[sortperm(vec(sum(A, 1)))] = collect(1:n)
+end
+
+# Return generator for pairs of neighbors higher in the ordering
+function ordered_nbr_pairs(A::SpIntMat, i::Int64, order::Vector{Int64})
+    pos_i = order[i]
+    return combinations(filter(nbr -> order[nbr] > pos_i, nz_row_inds(A, i)), 2)
+end
 
 """
 clcfs_data
@@ -41,7 +60,6 @@ wedges::Vector{Int64}
 triangles::Vector{Int64}
     Vector of triangle counts of nodes: tri_counts[v] is the number of triangles
     containing v.
-
 """
 immutable clcfs_data
     global_clcf::Float64
@@ -62,7 +80,129 @@ A::SparseMatrixCSC{Int64,Int64}
 
 returns type clcfs_data
 """
-function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
+function dir_clcfs(A::SpIntMat)
+    A = min.(A, 1)
+    A -= spdiagm(diag(A))
+    At = A'
+    B = min.(A, A')
+
+    n = size(A, 1)
+    dB = vec(sum(B, 1))
+    dI = vec(sum(A, 1))
+    dO = vec(sum(At, 1))
+    
+    wedges_OO = A  * dO - dB
+    wedges_IO = At * (dO - 1)
+    wedges_OI = A  * (dI - 1)
+    wedges_II = At * dI - dB
+
+    C = max.(A, A')
+    n = size(C, 1)    
+    deg_order = degree_order(C)
+    triangles = zeros(Int64, 8, n)
+    for i = 1:n
+        for (j, k) in ordered_nbr_pairs(C, i, deg_order)
+            if C[j, k] > 0
+                # Triangle between i, j, k
+                Aij = A[i, j] > 0
+                Aik = A[i, k] > 0
+                Aji = A[j, i] > 0
+                Ajk = A[j, k] > 0
+                Aki = A[k, i] > 0
+                Akj = A[k, j] > 0
+                if Aij && Ajk && Aik
+                    triangles[TRI_OO_O, i] += 1
+                    triangles[TRI_OI_O, i] += 1
+                    triangles[TRI_OI_I, j] += 1
+                    triangles[TRI_IO_O, j] += 1
+                    triangles[TRI_IO_I, k] += 1
+                    triangles[TRI_II_I, k] += 1
+                end
+                if Aij && Ajk && Aki
+                    triangles[TRI_OO_I, i] += 1
+                    triangles[TRI_II_O, i] += 1
+                    triangles[TRI_OO_I, j] += 1
+                    triangles[TRI_II_O, j] += 1
+                    triangles[TRI_OO_I, k] += 1
+                    triangles[TRI_II_O, k] += 1
+                end
+                if Aij && Akj && Aik
+                    triangles[TRI_OI_O, i] += 1
+                    triangles[TRI_OO_O, i] += 1
+                    triangles[TRI_II_I, j] += 1
+                    triangles[TRI_IO_I, j] += 1
+                    triangles[TRI_IO_O, k] += 1
+                    triangles[TRI_OI_I, k] += 1
+                end
+                if Aij && Akj && Aki
+                    triangles[TRI_OI_I, i] += 1
+                    triangles[TRI_IO_O, i] += 1
+                    triangles[TRI_IO_I, j] += 1
+                    triangles[TRI_II_I, j] += 1
+                    triangles[TRI_OO_O, k] += 1
+                    triangles[TRI_OI_O, k] += 1
+                end
+                if Aji && Ajk && Aik
+                    triangles[TRI_IO_O, i] += 1
+                    triangles[TRI_OI_I, i] += 1
+                    triangles[TRI_OI_O, j] += 1
+                    triangles[TRI_OO_O, j] += 1
+                    triangles[TRI_II_I, k] += 1
+                    triangles[TRI_IO_I, k] += 1
+                end
+                if Aji && Ajk && Aki
+                    triangles[TRI_IO_I, i] += 1
+                    triangles[TRI_II_I, i] += 1
+                    triangles[TRI_OO_O, j] += 1
+                    triangles[TRI_OI_O, j] += 1
+                    triangles[TRI_OI_I, k] += 1
+                    triangles[TRI_IO_O, k] += 1
+                end
+                if Aji && Akj && Aik
+                    triangles[TRI_II_O, i] += 1
+                    triangles[TRI_OO_I, i] += 1
+                    triangles[TRI_II_O, j] += 1
+                    triangles[TRI_OO_I, j] += 1
+                    triangles[TRI_II_O, k] += 1
+                    triangles[TRI_OO_I, k] += 1
+                end
+                if Aji && Akj && Aki
+                    triangles[TRI_II_I, i] += 1
+                    triangles[TRI_IO_I, i] += 1
+                    triangles[TRI_IO_O, j] += 1
+                    triangles[TRI_OI_I, j] += 1
+                    triangles[TRI_OI_O, k] += 1
+                    triangles[TRI_OO_O, k] += 1
+                end
+            end
+        end
+    end
+    triangles = triangles'
+
+    ret = Dict{String, clcfs_data}()
+    ret["OO_O"] = create_data_dir(triangles[:, TRI_OO_O], wedges_OO)
+    ret["OO_I"] = create_data_dir(triangles[:, TRI_OO_I], wedges_OO)
+    ret["OI_O"] = create_data_dir(triangles[:, TRI_OI_O], wedges_OI)
+    ret["OI_I"] = create_data_dir(triangles[:, TRI_OI_I], wedges_OI)
+    ret["IO_O"] = create_data_dir(triangles[:, TRI_IO_O], wedges_IO)
+    ret["IO_I"] = create_data_dir(triangles[:, TRI_IO_I], wedges_IO)
+    ret["II_O"] = create_data_dir(triangles[:, TRI_II_O], wedges_II)
+    ret["II_I"] = create_data_dir(triangles[:, TRI_II_I], wedges_II)
+    return ret
+end
+
+"""
+dir_clcfs2
+-----------------
+Compute directed closure coefficients. The input graph is given as a sparse
+matrix A, where A[i, j] = 1 if i --> j in the graph.
+
+A::SparseMatrixCSC{Int64,Int64}
+    The adjacency matrix of an undirected graph.
+
+returns type clcfs_data
+"""
+function dir_clcfs2(A::SpIntMat)
     A = min.(A, 1)
     A -= spdiagm(diag(A))
     At = A'
@@ -80,13 +220,10 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
 
     C = max.(A, A')
     n = size(C, 1)
-    deg_order = zeros(Int64, n)
-    deg_order[sortperm(vec(sum(C, 1)))] = collect(1:n)
+    deg_order = degree_order(C)
     triangles = zeros(Int64, 8, n)
     for i = 1:n
-        pos_i = deg_order[i]
-        nbrs = [v for v in nz_row_inds(C, i) if deg_order[v] > pos_i]
-        for (j, k) in combinations(nbrs, 2)
+        for (j, k) in ordered_nbr_pairs(C, i, deg_order)
             if C[j, k] > 0
                 # Triangle between i, j, k
                 Aij = A[i, j] > 0
@@ -101,7 +238,7 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_OI_I, j] += 1
                     triangles[TRI_IO_O, j] += 1
                     triangles[TRI_IO_I, k] += 1
-                    triangles[TRI_II_I, k] += 1                    
+                    triangles[TRI_II_I, k] += 1
                 end
                 if Aij && Ajk && Aki
                     triangles[TRI_OO_I, i] += 1
@@ -109,7 +246,7 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_OO_I, j] += 1
                     triangles[TRI_II_O, j] += 1
                     triangles[TRI_OO_I, k] += 1
-                    triangles[TRI_II_O, k] += 1                    
+                    triangles[TRI_II_O, k] += 1
                 end
                 if Aij && Akj && Aik
                     triangles[TRI_OI_O, i] += 1
@@ -117,7 +254,7 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_II_I, j] += 1
                     triangles[TRI_IO_I, j] += 1
                     triangles[TRI_IO_O, k] += 1
-                    triangles[TRI_OI_I, k] += 1                    
+                    triangles[TRI_OI_I, k] += 1
                 end
                 if Aij && Akj && Aki
                     triangles[TRI_OI_I, i] += 1
@@ -125,7 +262,7 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_IO_I, j] += 1
                     triangles[TRI_II_I, j] += 1
                     triangles[TRI_OO_O, k] += 1
-                    triangles[TRI_OI_O, k] += 1                    
+                    triangles[TRI_OI_O, k] += 1
                 end
                 if Aji && Ajk && Aik
                     triangles[TRI_IO_O, i] += 1
@@ -133,7 +270,7 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_OI_O, j] += 1
                     triangles[TRI_OO_O, j] += 1
                     triangles[TRI_II_I, k] += 1
-                    triangles[TRI_IO_I, k] += 1                    
+                    triangles[TRI_IO_I, k] += 1
                 end
                 if Aji && Ajk && Aki
                     triangles[TRI_IO_I, i] += 1
@@ -141,7 +278,7 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_OO_O, j] += 1
                     triangles[TRI_OI_O, j] += 1
                     triangles[TRI_OI_I, k] += 1
-                    triangles[TRI_IO_O, k] += 1                    
+                    triangles[TRI_IO_O, k] += 1
                 end
                 if Aji && Akj && Aik
                     triangles[TRI_II_O, i] += 1
@@ -149,7 +286,7 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_II_O, j] += 1
                     triangles[TRI_OO_I, j] += 1
                     triangles[TRI_II_O, k] += 1
-                    triangles[TRI_OO_I, k] += 1                    
+                    triangles[TRI_OO_I, k] += 1
                 end
                 if Aji && Akj && Aki
                     triangles[TRI_II_I, i] += 1
@@ -157,32 +294,24 @@ function dir_clcfs(A::SparseMatrixCSC{Int64,Int64})
                     triangles[TRI_IO_O, j] += 1
                     triangles[TRI_OI_I, j] += 1
                     triangles[TRI_OI_O, k] += 1
-                    triangles[TRI_OO_O, k] += 1                    
+                    triangles[TRI_OO_O, k] += 1
                 end
             end
         end
     end
     triangles = triangles'
 
-    function create_data(triangles::Vector{Int64}, wedges::Vector{Int64})
-        local_clcfs = zeros(Float64, n)
-        nz_inds = find(wedges .> 0)
-        local_clcfs[nz_inds] = triangles[nz_inds] ./ wedges[nz_inds]
-        return clcfs_data(sum(tri_counts) / sum(wedges),
-                          mean(local_clcfs[nz_inds]), local_clcfs, wedges, triangles)
-    end
-    ret = Vector{clcfs_data}(8)
-    ret[TRI_OO_O] = create_data(triangles[:, TRI_OO_O], wedges_OO)
-    ret[TRI_OO_I] = create_data(triangles[:, TRI_OO_I], wedges_OO)    
-    ret[TRI_OI_O] = create_data(triangles[:, TRI_OI_O], wedges_OI)
-    ret[TRI_OI_I] = create_data(triangles[:, TRI_OI_I], wedges_OI)    
-    ret[TRI_IO_O] = create_data(triangles[:, TRI_IO_O], wedges_IO)
-    ret[TRI_IO_I] = create_data(triangles[:, TRI_IO_I], wedges_IO)    
-    ret[TRI_II_O] = create_data(triangles[:, TRI_II_O], wedges_II)
-    ret[TRI_II_I] = create_data(triangles[:, TRI_II_I], wedges_II)    
+    ret = Dict{String, clcfs_data}()
+    ret["OO_O"] = create_data_dir(triangles[:, TRI_OO_O], wedges_OO)
+    ret["OO_I"] = create_data_dir(triangles[:, TRI_OO_I], wedges_OO)
+    ret["OI_O"] = create_data_dir(triangles[:, TRI_OI_O], wedges_OI)
+    ret["OI_I"] = create_data_dir(triangles[:, TRI_OI_I], wedges_OI)
+    ret["IO_O"] = create_data_dir(triangles[:, TRI_IO_O], wedges_IO)
+    ret["IO_I"] = create_data_dir(triangles[:, TRI_IO_I], wedges_IO)
+    ret["II_O"] = create_data_dir(triangles[:, TRI_II_O], wedges_II)
+    ret["II_I"] = create_data_dir(triangles[:, TRI_II_I], wedges_II)
     return ret
 end
-
 
 """
 undir_clcfs
@@ -195,7 +324,7 @@ A::SparseMatrixCSC{Int64,Int64}
 
 returns type clcfs_data
 """
-function undir_clcfs(A::SparseMatrixCSC{Int64,Int64})
+function undir_clcfs(A::SpIntMat)
     A = min.(A, 1)
     A -= spdiagm(diag(A))
     if !issymmetric(A)
@@ -207,13 +336,10 @@ function undir_clcfs(A::SparseMatrixCSC{Int64,Int64})
     degs = vec(sum(A, 1))
     wedges = A * (degs - 1)
 
-    deg_order = zeros(Int64, n)
-    deg_order[sortperm(degs)] = collect(1:n)
+    deg_order = degree_order(A)
     triangles = zeros(Int64, n)
     for i = 1:n
-        pos_i = deg_order[i]
-        nbrs = [v for v in nz_row_inds(A, i) if deg_order[v] > pos_i]
-        for (j, k) in combinations(nbrs, 2)
+        for (j, k) in ordered_nbr_pairs(A, i, deg_order)
             if A[j, k] > 0; triangles[[i, j, k]] += 1; end
         end
     end
