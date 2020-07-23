@@ -1,8 +1,12 @@
 module ClosureCoefficients
 
 using Combinatorics
+using LinearAlgebra
+using Printf
+using SparseArrays
+using StatsBase
 
-export undir_clcfs, dir_clcfs, clcfs_data, load_example_data
+export undir_clcfs, dir_clcfs, clcfs_data, construct_directed_data, load_example_data
 
 const SpIntMat = SparseMatrixCSC{Int64,Int64}
 
@@ -17,15 +21,13 @@ const TRI_ii_i = 8
 
 """
 Read a graph from a text file. Skips any lines that begin with '#' or '%'
-characters. If oneindex is true, then nodes are mapped to values 1, ..., n.
-If symm is true, then the matrix is symmetrized.
+characters. Nodes are mapped to values 1, ..., n.
 
 Returns (A, v), where
    A is the n x n undirected graph adjacency matrix
-   v is a length-n vector such that v[i] is the original node identifier
-     (if oneindex is false, then v[i] = i, i = 1, ..., n)
+   v is a length-n vector such that v[i] is the original node identifier in the text file
 """
-function read_graph_txt(filename::AbstractString, oneindex::Bool=false, symm::Bool=false)
+function read_graph_txt(filename::AbstractString)
     # index mapping
     index_map = Dict{Int64,Int64}()
     index_map_vec = Int64[]
@@ -49,41 +51,30 @@ function read_graph_txt(filename::AbstractString, oneindex::Bool=false, symm::Bo
             edge = split(line)
             u = parse(Int64, edge[1])
             v = parse(Int64, edge[2])
-            if oneindex
-                push!(I, get_mapped_index(u))
-                push!(J, get_mapped_index(v))
-            else
-                push!(I, u)
-                push!(J, v)
-            end
+            push!(I, get_mapped_index(u))
+            push!(J, get_mapped_index(v))
         end
     end
 
-    # Form adjacency matrix
-    if min(minimum(I), minimum(J)) < 1
-        error("Minimum node value is less than 1. Try setting oneindex parameter to true.")
-    end
     n = max(maximum(I), maximum(J))
-    A = convert(SpIntMat, sparse(I, J, ones(length(I)), n, n))
-    if symm
-        A = max.(A, A')
-    end
-    
-    if !oneindex
-        index_map_vec = collect(1:n)
-    end
-    
+    A = convert(SpIntMat, sparse(I, J, ones(length(I)), n, n))    
     return (A, index_map_vec)
 end
 
 """
 Load an example file from the data directory.
 """
-function load_example_data(filename::AbstractString)
+function load_example_data(filename::AbstractString; symm::Bool=false)
     pathname = joinpath(dirname(dirname(@__FILE__)), "data")
     filename = joinpath(pathname, filename)
-    if   isfile(filename); return read_undir_graph_txt(filename, true)[1]
-    else error(@sprintf("Could not find file %s", name))
+    if   isfile(filename)
+        A = read_graph_txt(filename)[1]
+        if symm
+            A = max.(A, A')
+        end
+        return A
+    else
+        error(@sprintf("Could not find file %s", name))
     end
 end
 
@@ -119,7 +110,7 @@ end
 
 function construct_directed_data(triangles::Vector{Int64}, wedges::Vector{Int64})
     local_clcfs = zeros(Float64, length(wedges))
-    nz_inds = find(wedges .> 0)
+    nz_inds = findall(wedges .> 0)
     local_clcfs[nz_inds] = triangles[nz_inds] ./ wedges[nz_inds]
     avg_clcf = (length(nz_inds) > 0) ? mean(local_clcfs[nz_inds]) : 0.0
     num_wedges = sum(wedges)
@@ -130,7 +121,7 @@ end
 function degree_order(A::SpIntMat)
     n = size(A, 1)
     deg_order = zeros(Int64, n)
-    deg_order[sortperm(vec(sum(A, 1)))] = collect(1:n)
+    deg_order[sortperm(vec(sum(A, dims=1)))] = collect(1:n)
 end
 
 nz_row_inds(A::SpIntMat, ind::Int64) =
@@ -156,19 +147,21 @@ returns type clcfs_data
 """
 function dir_clcfs(A::SpIntMat)
     A = min.(A, 1)
-    A -= spdiagm(diag(A))
-    At = A'
+    A -= Diagonal(A)
+    At = convert(SpIntMat, A')
     B = min.(A, At)
 
     n = size(A, 1)
     dB = vec(sum(B, dims=1))
     dI = vec(sum(A, dims=1))
     dO = vec(sum(At, dims=1))
+
+    @show typeof(A), typeof(dO), typeof(A * dO)
     
-    wedges_oo = A  * dO .- dB
+    wedges_oo = A  * dO - dB
     wedges_io = At * (dO .- 1)
     wedges_oi = A  * (dI .- 1)
-    wedges_ii = At * dI .- dB
+    wedges_ii = At * dI - dB
 
     C = max.(A, At)
     n = size(C, 1)    
@@ -278,9 +271,9 @@ returns type clcfs_data
 """
 function undir_clcfs(A::SpIntMat)
     A = min.(A, 1)
-    A -= spdiagm(diag(A))
+    A -= Diagonal(A)
     if !issymmetric(A)
-        warn("Input graph is not symmetric. Symmetrizing...")
+        println("Input graph is not symmetric. Symmetrizing...")
         A = max.(A, A')
     end
 
@@ -297,7 +290,7 @@ function undir_clcfs(A::SpIntMat)
     end
 
     local_clcfs = zeros(Float64, n)
-    nz_inds = find(wedges .> 0)
+    nz_inds = findall(wedges .> 0)
     local_clcfs[nz_inds] = 2 * triangles[nz_inds] ./ wedges[nz_inds]
     return clcfs_data(2 * sum(triangles) / sum(wedges),
                       mean(local_clcfs[nz_inds]), local_clcfs, wedges, triangles)

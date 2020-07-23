@@ -1,5 +1,7 @@
 using ClosureCoefficients
-using Base.Test
+using SparseArrays
+using StatsBase
+using Test
 
 function undir_test1()
     I = [1, 1, 2, 3, 3]
@@ -153,12 +155,12 @@ function dir_test3()
 end
 
 function data_test()
-    A1 = load_example_data("FW-Florida.txt", oneindex=true, symm=false)
+    A1 = load_example_data("FW-Florida.txt", symm=false)
     dc = dir_clcfs(A1)
     # TODO(arb): check these numbers more precisely with data from Hao
     @test ≈(dc["ii_i"].avg_clcf, 0.21, atol=0.03)
     @test ≈(dc["oo_i"].avg_clcf, 0.05, atol=0.03)
-    A2 = load_example_data("arxiv-AstroPh.txt", oneindex=true, symm=true)
+    A2 = load_example_data("arxiv-AstroPh.txt", symm=true)
     uc = undir_clcfs(A2)
     @test ≈(uc.avg_clcf, 0.250, atol=0.001)
     @test ≈(uc.global_clcf, 0.318, atol=0.001)
