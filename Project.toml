@@ -1,0 +1,8 @@
+name = "ClosureCoefficients"
+uuid = "757cdaac-3248-4787-b452-5fd40e460c74"
+authors = ["Austin Benson <arbenson@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
