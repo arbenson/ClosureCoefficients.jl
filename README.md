@@ -20,21 +20,21 @@ using ClosureCoefficients
 
 #### Compute directed clousure coefficients of the Florida Bay food web.
 ```julia
-A = load_example_data("FW-Florida.txt", oneindex=true)
-clcfs = dir_clcfs(A1)
-ccfs["ii_o"].avg_clcf  # mean directed closure for o-closed ii wedges
-ccfs["oi_i"].local_clcf  # fraction i-closed oi wedges, per node
+A = load_example_data("FW-Florida.txt", symm=false)
+clcfs = dir_clcfs(A)
+clcfs["ii_o"].avg_clcf  # mean directed closure for o-closed ii wedges
+clcfs["oi_i"].local_clcfs  # fraction i-closed oi wedges, per node
 ```
 
 A "zero" value for a local closure coefficient can mean two things: the node is at the head of at least one wedge but the wedge never closes or (ii) the node is not the head of a wedge. It is easy to find the nodes in the latter case because the data structure also returns the wedge counts.
 ```julia
-findall(ccfs["ii_o"].wedges .== 0)
+findall(clcfs["oi_i"].wedges .== 0)
 ```
 
 #### Compute undirected clousure coefficients on the arXiv-AstroPh network.
 
 ```julia
-A = load_example_data("arxiv-AstroPh.txt", oneindex=true, symm=true)
-clcfs = undir_clcfs(A1)
+A = load_example_data("arxiv-AstroPh.txt", symm=true)
+clcfs = undir_clcfs(A)
 clcfs.avg_clcf
 ```
