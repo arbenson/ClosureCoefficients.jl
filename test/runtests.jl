@@ -1,9 +1,5 @@
 using ClosureCoefficients
-@static if VERSION < v"0.7.0-DEV.2005"
-    using Base.Test
-else
-    using Test
-end
+using Base.Test
 
 function undir_test1()
     I = [1, 1, 2, 3, 3]
@@ -51,53 +47,53 @@ function dir_test2()
     A = sparse(I, J, 1, 3, 3)
 
     ret = dir_clcfs(A)
-    @test ret["OO_O"].global_clcf ≈ 1.0
-    @test ret["OO_O"].avg_clcf    ≈ 1.0
-    @test ret["OO_O"].local_clcfs ≈ [1.0, 0.0, 0.0]
-    @test ret["OO_O"].wedges    == [1, 0, 0]
-    @test ret["OO_O"].triangles == [1, 0, 0]
+    @test ret["oo_o"].global_clcf ≈ 1.0
+    @test ret["oo_o"].avg_clcf    ≈ 1.0
+    @test ret["oo_o"].local_clcfs ≈ [1.0, 0.0, 0.0]
+    @test ret["oo_o"].wedges    == [1, 0, 0]
+    @test ret["oo_o"].triangles == [1, 0, 0]
 
-    @test ret["OO_I"].global_clcf ≈ 0.0
-    @test ret["OO_I"].avg_clcf    ≈ 0.0
-    @test ret["OO_I"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["OO_I"].wedges    == [1, 0, 0]
-    @test ret["OO_I"].triangles == [0, 0, 0]
+    @test ret["oo_i"].global_clcf ≈ 0.0
+    @test ret["oo_i"].avg_clcf    ≈ 0.0
+    @test ret["oo_i"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["oo_i"].wedges    == [1, 0, 0]
+    @test ret["oo_i"].triangles == [0, 0, 0]
 
-    @test ret["OI_O"].global_clcf ≈ 0.5
-    @test ret["OI_O"].avg_clcf    ≈ 0.5
-    @test ret["OI_O"].local_clcfs ≈ [1.0, 0.0, 0.0]
-    @test ret["OI_O"].wedges    == [1, 1, 0]
-    @test ret["OI_O"].triangles == [1, 0, 0]
+    @test ret["oi_o"].global_clcf ≈ 0.5
+    @test ret["oi_o"].avg_clcf    ≈ 0.5
+    @test ret["oi_o"].local_clcfs ≈ [1.0, 0.0, 0.0]
+    @test ret["oi_o"].wedges    == [1, 1, 0]
+    @test ret["oi_o"].triangles == [1, 0, 0]
 
-    @test ret["OI_I"].global_clcf ≈ 0.5
-    @test ret["OI_I"].avg_clcf    ≈ 0.5
-    @test ret["OI_I"].local_clcfs ≈ [0.0, 1.0, 0.0]
-    @test ret["OI_I"].wedges    == [1, 1, 0]
-    @test ret["OI_I"].triangles == [0, 1, 0]
+    @test ret["oi_i"].global_clcf ≈ 0.5
+    @test ret["oi_i"].avg_clcf    ≈ 0.5
+    @test ret["oi_i"].local_clcfs ≈ [0.0, 1.0, 0.0]
+    @test ret["oi_i"].wedges    == [1, 1, 0]
+    @test ret["oi_i"].triangles == [0, 1, 0]
 
-    @test ret["IO_O"].global_clcf ≈ 0.5
-    @test ret["IO_O"].avg_clcf    ≈ 0.5
-    @test ret["IO_O"].local_clcfs ≈ [0.0, 1.0, 0.0]
-    @test ret["IO_O"].wedges    == [0, 1, 1]
-    @test ret["IO_O"].triangles == [0, 1, 0]
+    @test ret["io_o"].global_clcf ≈ 0.5
+    @test ret["io_o"].avg_clcf    ≈ 0.5
+    @test ret["io_o"].local_clcfs ≈ [0.0, 1.0, 0.0]
+    @test ret["io_o"].wedges    == [0, 1, 1]
+    @test ret["io_o"].triangles == [0, 1, 0]
 
-    @test ret["IO_I"].global_clcf ≈ 0.5
-    @test ret["IO_I"].avg_clcf    ≈ 0.5
-    @test ret["IO_I"].local_clcfs ≈ [0.0, 0.0, 1.0]
-    @test ret["IO_I"].wedges    == [0, 1, 1]
-    @test ret["IO_I"].triangles == [0, 0, 1]
+    @test ret["io_i"].global_clcf ≈ 0.5
+    @test ret["io_i"].avg_clcf    ≈ 0.5
+    @test ret["io_i"].local_clcfs ≈ [0.0, 0.0, 1.0]
+    @test ret["io_i"].wedges    == [0, 1, 1]
+    @test ret["io_i"].triangles == [0, 0, 1]
 
-    @test ret["II_O"].global_clcf ≈ 0.0
-    @test ret["II_O"].avg_clcf    ≈ 0.0
-    @test ret["II_O"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["II_O"].wedges    == [0, 0, 1]
-    @test ret["II_O"].triangles == [0, 0, 0]
+    @test ret["ii_o"].global_clcf ≈ 0.0
+    @test ret["ii_o"].avg_clcf    ≈ 0.0
+    @test ret["ii_o"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["ii_o"].wedges    == [0, 0, 1]
+    @test ret["ii_o"].triangles == [0, 0, 0]
 
-    @test ret["II_I"].global_clcf ≈ 1.0
-    @test ret["II_I"].avg_clcf    ≈ 1.0
-    @test ret["II_I"].local_clcfs ≈ [0.0, 0.0, 1.0]
-    @test ret["II_I"].wedges    == [0, 0, 1]
-    @test ret["II_I"].triangles == [0, 0, 1]
+    @test ret["ii_i"].global_clcf ≈ 1.0
+    @test ret["ii_i"].avg_clcf    ≈ 1.0
+    @test ret["ii_i"].local_clcfs ≈ [0.0, 0.0, 1.0]
+    @test ret["ii_i"].wedges    == [0, 0, 1]
+    @test ret["ii_i"].triangles == [0, 0, 1]
 end
 
 function dir_test3()
@@ -107,53 +103,65 @@ function dir_test3()
     A = sparse(I, J, 1, 3, 3)
 
     ret = dir_clcfs(A)
-    @test ret["OO_O"].global_clcf ≈ 0.0
-    @test ret["OO_O"].avg_clcf    ≈ 0.0
-    @test ret["OO_O"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["OO_O"].wedges    == [1, 1, 1]
-    @test ret["OO_O"].triangles == [0, 0, 0]
+    @test ret["oo_o"].global_clcf ≈ 0.0
+    @test ret["oo_o"].avg_clcf    ≈ 0.0
+    @test ret["oo_o"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["oo_o"].wedges    == [1, 1, 1]
+    @test ret["oo_o"].triangles == [0, 0, 0]
 
-    @test ret["OO_I"].global_clcf ≈ 1.0
-    @test ret["OO_I"].avg_clcf    ≈ 1.0
-    @test ret["OO_I"].local_clcfs ≈ [1.0, 1.0, 1.0]
-    @test ret["OO_I"].wedges    == [1, 1, 1]
-    @test ret["OO_I"].triangles == [1, 1, 1]
+    @test ret["oo_i"].global_clcf ≈ 1.0
+    @test ret["oo_i"].avg_clcf    ≈ 1.0
+    @test ret["oo_i"].local_clcfs ≈ [1.0, 1.0, 1.0]
+    @test ret["oo_i"].wedges    == [1, 1, 1]
+    @test ret["oo_i"].triangles == [1, 1, 1]
 
-    @test ret["OI_O"].global_clcf ≈ 0.0
-    @test ret["OI_O"].avg_clcf    ≈ 0.0
-    @test ret["OI_O"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["OI_O"].wedges    == [0, 0, 0]
-    @test ret["OI_O"].triangles == [0, 0, 0]
+    @test ret["oi_o"].global_clcf ≈ 0.0
+    @test ret["oi_o"].avg_clcf    ≈ 0.0
+    @test ret["oi_o"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["oi_o"].wedges    == [0, 0, 0]
+    @test ret["oi_o"].triangles == [0, 0, 0]
 
-    @test ret["OI_I"].global_clcf ≈ 0.0
-    @test ret["OI_I"].avg_clcf    ≈ 0.0
-    @test ret["OI_I"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["OI_I"].wedges    == [0, 0, 0]
-    @test ret["OI_I"].triangles == [0, 0, 0]
+    @test ret["oi_i"].global_clcf ≈ 0.0
+    @test ret["oi_i"].avg_clcf    ≈ 0.0
+    @test ret["oi_i"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["oi_i"].wedges    == [0, 0, 0]
+    @test ret["oi_i"].triangles == [0, 0, 0]
 
-    @test ret["IO_O"].global_clcf ≈ 0.0
-    @test ret["IO_O"].avg_clcf    ≈ 0.0
-    @test ret["IO_O"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["IO_O"].wedges    == [0, 0, 0]
-    @test ret["IO_O"].triangles == [0, 0, 0]
+    @test ret["io_o"].global_clcf ≈ 0.0
+    @test ret["io_o"].avg_clcf    ≈ 0.0
+    @test ret["io_o"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["io_o"].wedges    == [0, 0, 0]
+    @test ret["io_o"].triangles == [0, 0, 0]
 
-    @test ret["IO_I"].global_clcf ≈ 0.0
-    @test ret["IO_I"].avg_clcf    ≈ 0.0
-    @test ret["IO_I"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["IO_I"].wedges    == [0, 0, 0]
-    @test ret["IO_I"].triangles == [0, 0, 0]
+    @test ret["io_i"].global_clcf ≈ 0.0
+    @test ret["io_i"].avg_clcf    ≈ 0.0
+    @test ret["io_i"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["io_i"].wedges    == [0, 0, 0]
+    @test ret["io_i"].triangles == [0, 0, 0]
 
-    @test ret["II_O"].global_clcf ≈ 1.0
-    @test ret["II_O"].avg_clcf    ≈ 1.0
-    @test ret["II_O"].local_clcfs ≈ [1.0, 1.0, 1.0]
-    @test ret["II_O"].wedges    == [1, 1, 1]
-    @test ret["II_O"].triangles == [1, 1, 1]
+    @test ret["ii_o"].global_clcf ≈ 1.0
+    @test ret["ii_o"].avg_clcf    ≈ 1.0
+    @test ret["ii_o"].local_clcfs ≈ [1.0, 1.0, 1.0]
+    @test ret["ii_o"].wedges    == [1, 1, 1]
+    @test ret["ii_o"].triangles == [1, 1, 1]
 
-    @test ret["II_I"].global_clcf ≈ 0.0
-    @test ret["II_I"].avg_clcf    ≈ 0.0
-    @test ret["II_I"].local_clcfs ≈ [0.0, 0.0, 0.0]
-    @test ret["II_I"].wedges    == [1, 1, 1]
-    @test ret["II_I"].triangles == [0, 0, 0]
+    @test ret["ii_i"].global_clcf ≈ 0.0
+    @test ret["ii_i"].avg_clcf    ≈ 0.0
+    @test ret["ii_i"].local_clcfs ≈ [0.0, 0.0, 0.0]
+    @test ret["ii_i"].wedges    == [1, 1, 1]
+    @test ret["ii_i"].triangles == [0, 0, 0]
+end
+
+function data_test()
+    A1 = load_example_data("FW-Florida.txt", oneindex=true, symm=false)
+    dc = dir_clcfs(A1)
+    # TODO(arb): check these numbers more precisely with data from Hao
+    @test ≈(dc["ii_i"].avg_clcf, 0.21, atol=0.03)
+    @test ≈(dc["oo_i"].avg_clcf, 0.05, atol=0.03)
+    A2 = load_example_data("arxiv-AstroPh.txt", oneindex=true, symm=true)
+    uc = undir_clcfs(A2)
+    @test ≈(uc.avg_clcf, 0.250, atol=0.001)
+    @test ≈(uc.global_clcf, 0.318, atol=0.001)
 end
 
 function run_all()
@@ -161,5 +169,6 @@ function run_all()
     dir_test1()
     dir_test2()
     dir_test3()
+    data_test()
 end
 run_all()

@@ -2,18 +2,91 @@ module ClosureCoefficients
 
 using Combinatorics
 
-export undir_clcfs, dir_clcfs, clcfs_data
+export undir_clcfs, dir_clcfs, clcfs_data, load_example_data
 
 const SpIntMat = SparseMatrixCSC{Int64,Int64}
 
-const TRI_OO_O = 1
-const TRI_OO_I = 2
-const TRI_OI_O = 3
-const TRI_OI_I = 4
-const TRI_IO_O = 5
-const TRI_IO_I = 6
-const TRI_II_O = 7
-const TRI_II_I = 8
+const TRI_oo_o = 1
+const TRI_oo_i = 2
+const TRI_oi_o = 3
+const TRI_oi_i = 4
+const TRI_io_o = 5
+const TRI_io_i = 6
+const TRI_ii_o = 7
+const TRI_ii_i = 8
+
+"""
+Read a graph from a text file. Skips any lines that begin with '#' or '%'
+characters. If oneindex is true, then nodes are mapped to values 1, ..., n.
+If symm is true, then the matrix is symmetrized.
+
+Returns (A, v), where
+   A is the n x n undirected graph adjacency matrix
+   v is a length-n vector such that v[i] is the original node identifier
+     (if oneindex is false, then v[i] = i, i = 1, ..., n)
+"""
+function read_graph_txt(filename::AbstractString, oneindex::Bool=false, symm::Bool=false)
+    # index mapping
+    index_map = Dict{Int64,Int64}()
+    index_map_vec = Int64[]
+    function get_mapped_index(x::Int64)
+        if !haskey(index_map, x)
+            next_index = length(index_map) + 1
+            index_map[x] = next_index
+            push!(index_map_vec, x)
+            return next_index
+        end
+        return index_map[x]
+    end
+
+    # Read data
+    I = Int64[]
+    J = Int64[]
+    open(filename) do f
+        for line in eachline(f)
+            # Skip lines starting with '#' or '%'
+            if line[1] == '#' || line[1] == '%'; continue; end
+            edge = split(line)
+            u = parse(Int64, edge[1])
+            v = parse(Int64, edge[2])
+            if oneindex
+                push!(I, get_mapped_index(u))
+                push!(J, get_mapped_index(v))
+            else
+                push!(I, u)
+                push!(J, v)
+            end
+        end
+    end
+
+    # Form adjacency matrix
+    if min(minimum(I), minimum(J)) < 1
+        error("Minimum node value is less than 1. Try setting oneindex parameter to true.")
+    end
+    n = max(maximum(I), maximum(J))
+    A = convert(SpIntMat, sparse(I, J, ones(length(I)), n, n))
+    if symm
+        A = max.(A, A')
+    end
+    
+    if !oneindex
+        index_map_vec = collect(1:n)
+    end
+    
+    return (A, index_map_vec)
+end
+
+"""
+Load an example file from the data directory.
+"""
+function load_example_data(filename::AbstractString)
+    pathname = joinpath(dirname(dirname(@__FILE__)), "data")
+    filename = joinpath(pathname, filename)
+    if   isfile(filename); return read_undir_graph_txt(filename, true)[1]
+    else error(@sprintf("Could not find file %s", name))
+    end
+end
+
 
 """
 clcfs_data
@@ -92,10 +165,10 @@ function dir_clcfs(A::SpIntMat)
     dI = vec(sum(A, dims=1))
     dO = vec(sum(At, dims=1))
     
-    wedges_OO = A  * dO .- dB
-    wedges_IO = At * (dO .- 1)
-    wedges_OI = A  * (dI .- 1)
-    wedges_II = At * dI .- dB
+    wedges_oo = A  * dO .- dB
+    wedges_io = At * (dO .- 1)
+    wedges_oi = A  * (dI .- 1)
+    wedges_ii = At * dI .- dB
 
     C = max.(A, At)
     n = size(C, 1)    
@@ -112,68 +185,68 @@ function dir_clcfs(A::SpIntMat)
                 Aki = A[k, i] > 0
                 Akj = A[k, j] > 0
                 if Aij && Ajk && Aik
-                    triangles[TRI_OO_O, i] += 1
-                    triangles[TRI_OI_O, i] += 1
-                    triangles[TRI_OI_I, j] += 1
-                    triangles[TRI_IO_O, j] += 1
-                    triangles[TRI_IO_I, k] += 1
-                    triangles[TRI_II_I, k] += 1
+                    triangles[TRI_oo_o, i] += 1
+                    triangles[TRI_oi_o, i] += 1
+                    triangles[TRI_oi_i, j] += 1
+                    triangles[TRI_io_o, j] += 1
+                    triangles[TRI_io_i, k] += 1
+                    triangles[TRI_ii_i, k] += 1
                 end
                 if Aij && Ajk && Aki
-                    triangles[TRI_OO_I, i] += 1
-                    triangles[TRI_II_O, i] += 1
-                    triangles[TRI_OO_I, j] += 1
-                    triangles[TRI_II_O, j] += 1
-                    triangles[TRI_OO_I, k] += 1
-                    triangles[TRI_II_O, k] += 1
+                    triangles[TRI_oo_i, i] += 1
+                    triangles[TRI_ii_o, i] += 1
+                    triangles[TRI_oo_i, j] += 1
+                    triangles[TRI_ii_o, j] += 1
+                    triangles[TRI_oo_i, k] += 1
+                    triangles[TRI_ii_o, k] += 1
                 end
                 if Aij && Akj && Aik
-                    triangles[TRI_OI_O, i] += 1
-                    triangles[TRI_OO_O, i] += 1
-                    triangles[TRI_II_I, j] += 1
-                    triangles[TRI_IO_I, j] += 1
-                    triangles[TRI_IO_O, k] += 1
-                    triangles[TRI_OI_I, k] += 1
+                    triangles[TRI_oi_o, i] += 1
+                    triangles[TRI_oo_o, i] += 1
+                    triangles[TRI_ii_i, j] += 1
+                    triangles[TRI_io_i, j] += 1
+                    triangles[TRI_io_o, k] += 1
+                    triangles[TRI_oi_i, k] += 1
                 end
                 if Aij && Akj && Aki
-                    triangles[TRI_OI_I, i] += 1
-                    triangles[TRI_IO_O, i] += 1
-                    triangles[TRI_IO_I, j] += 1
-                    triangles[TRI_II_I, j] += 1
-                    triangles[TRI_OO_O, k] += 1
-                    triangles[TRI_OI_O, k] += 1
+                    triangles[TRI_oi_i, i] += 1
+                    triangles[TRI_io_o, i] += 1
+                    triangles[TRI_io_i, j] += 1
+                    triangles[TRI_ii_i, j] += 1
+                    triangles[TRI_oo_o, k] += 1
+                    triangles[TRI_oi_o, k] += 1
                 end
                 if Aji && Ajk && Aik
-                    triangles[TRI_IO_O, i] += 1
-                    triangles[TRI_OI_I, i] += 1
-                    triangles[TRI_OI_O, j] += 1
-                    triangles[TRI_OO_O, j] += 1
-                    triangles[TRI_II_I, k] += 1
-                    triangles[TRI_IO_I, k] += 1
+                    triangles[TRI_io_o, i] += 1
+                    triangles[TRI_oi_i, i] += 1
+                    triangles[TRI_oi_o, j] += 1
+                    triangles[TRI_oo_o, j] += 1
+                    triangles[TRI_ii_i, k] += 1
+                    triangles[TRI_io_i, k] += 1
                 end
                 if Aji && Ajk && Aki
-                    triangles[TRI_IO_I, i] += 1
-                    triangles[TRI_II_I, i] += 1
-                    triangles[TRI_OO_O, j] += 1
-                    triangles[TRI_OI_O, j] += 1
-                    triangles[TRI_OI_I, k] += 1
-                    triangles[TRI_IO_O, k] += 1
+                    triangles[TRI_io_i, i] += 1
+                    triangles[TRI_ii_i, i] += 1
+                    triangles[TRI_oo_o, j] += 1
+                    triangles[TRI_oi_o, j] += 1
+                    triangles[TRI_oi_i, k] += 1
+                    triangles[TRI_io_o, k] += 1
                 end
                 if Aji && Akj && Aik
-                    triangles[TRI_II_O, i] += 1
-                    triangles[TRI_OO_I, i] += 1
-                    triangles[TRI_II_O, j] += 1
-                    triangles[TRI_OO_I, j] += 1
-                    triangles[TRI_II_O, k] += 1
-                    triangles[TRI_OO_I, k] += 1
+                    triangles[TRI_ii_o, i] += 1
+                    triangles[TRI_oo_i, i] += 1
+                    triangles[TRI_ii_o, j] += 1
+                    triangles[TRI_oo_i, j] += 1
+                    triangles[TRI_ii_o, k] += 1
+                    triangles[TRI_oo_i, k] += 1
                 end
                 if Aji && Akj && Aki
-                    triangles[TRI_II_I, i] += 1
-                    triangles[TRI_IO_I, i] += 1
-                    triangles[TRI_IO_O, j] += 1
-                    triangles[TRI_OI_I, j] += 1
-                    triangles[TRI_OI_O, k] += 1
-                    triangles[TRI_OO_O, k] += 1
+                    triangles[TRI_ii_i, i] += 1
+                    triangles[TRI_io_i, i] += 1
+                    triangles[TRI_io_o, j] += 1
+                    triangles[TRI_oi_i, j] += 1
+                    triangles[TRI_oi_o, k] += 1
+                    triangles[TRI_oo_o, k] += 1
                 end
             end
         end
@@ -181,14 +254,14 @@ function dir_clcfs(A::SpIntMat)
     triangles = triangles'
 
     ret = Dict{String, clcfs_data}()
-    ret["OO_O"] = construct_directed_data(triangles[:, TRI_OO_O], wedges_OO)
-    ret["OO_I"] = construct_directed_data(triangles[:, TRI_OO_I], wedges_OO)
-    ret["OI_O"] = construct_directed_data(triangles[:, TRI_OI_O], wedges_OI)
-    ret["OI_I"] = construct_directed_data(triangles[:, TRI_OI_I], wedges_OI)
-    ret["IO_O"] = construct_directed_data(triangles[:, TRI_IO_O], wedges_IO)
-    ret["IO_I"] = construct_directed_data(triangles[:, TRI_IO_I], wedges_IO)
-    ret["II_O"] = construct_directed_data(triangles[:, TRI_II_O], wedges_II)
-    ret["II_I"] = construct_directed_data(triangles[:, TRI_II_I], wedges_II)
+    ret["oo_o"] = construct_directed_data(triangles[:, TRI_oo_o], wedges_oo)
+    ret["oo_i"] = construct_directed_data(triangles[:, TRI_oo_i], wedges_oo)
+    ret["oi_o"] = construct_directed_data(triangles[:, TRI_oi_o], wedges_oi)
+    ret["oi_i"] = construct_directed_data(triangles[:, TRI_oi_i], wedges_oi)
+    ret["io_o"] = construct_directed_data(triangles[:, TRI_io_o], wedges_io)
+    ret["io_i"] = construct_directed_data(triangles[:, TRI_io_i], wedges_io)
+    ret["ii_o"] = construct_directed_data(triangles[:, TRI_ii_o], wedges_ii)
+    ret["ii_i"] = construct_directed_data(triangles[:, TRI_ii_i], wedges_ii)
     return ret
 end
 
