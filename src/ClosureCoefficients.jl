@@ -156,8 +156,6 @@ function dir_clcfs(A::SpIntMat)
     dI = vec(sum(A, dims=1))
     dO = vec(sum(At, dims=1))
 
-    @show typeof(A), typeof(dO), typeof(A * dO)
-    
     wedges_oo = A  * dO - dB
     wedges_io = At * (dO .- 1)
     wedges_oi = A  * (dI .- 1)
